@@ -70,6 +70,8 @@ class Module extends XmlPersistableConfigurationObject {
 
     String javaVersion
 
+    Set<String> facets = [] as LinkedHashSet
+
     PathFactory pathFactory = new PathFactory()
 
     Module(XmlTransformer withXmlActions) {
@@ -141,7 +143,7 @@ class Module extends XmlPersistableConfigurationObject {
     }
 
     void configure(Path contentPath, Set sourceFolders, Set testSourceFolders, Set excludeFolders, Boolean inheritOutputDirs, Path outputDir, Path testOutputDir, Set dependencies,
-                  String javaVersion) {
+                  String javaVersion, Set facets) {
         this.contentPath = contentPath
         this.sourceFolders.addAll(sourceFolders)
         this.testSourceFolders.addAll(testSourceFolders)
@@ -159,6 +161,10 @@ class Module extends XmlPersistableConfigurationObject {
         if (javaVersion) {
             this.javaVersion = javaVersion
         }
+
+        if(facets) {
+            this.facets = facets
+        }
     }
 
     @Override protected void store(Node xml) {
@@ -171,6 +177,33 @@ class Module extends XmlPersistableConfigurationObject {
 
         removeDependenciesFromXml()
         addDependenciesToXml()
+	    addFacetsToXml()
+    }
+
+    private void addFacetsToXml() {
+	    facets.each { facet ->
+            switch ( facet.name ) {
+                case "web": addWebFacetToXml(facet.properties)
+                            break
+            }
+	    }
+    }
+
+    private void addWebFacetToXml(Map properties) {
+        def webappUrl = properties['WEBAPP_DIR']
+
+        def facetManager = findOrCreateFacetManager()
+        def webFacetConfiguration = facetManager.appendNode('facet', [type: 'web', name: 'Web']).appendNode('configuration')
+        webFacetConfiguration.appendNode('descriptors').appendNode('deploymentDescriptor', [name: 'web.xml', url: webappUrl.url + '/WEB-INF/web.xml'])
+
+        webFacetConfiguration.appendNode('webroots').appendNode('root', [url: webappUrl.url, relative: '/'])
+
+        def sourceRoots = new NodeBuilder().sourceRoots {[
+            sourceFolders.each { path ->
+                root(url: path.url)
+            }
+        ]}
+        webFacetConfiguration.append(sourceRoots)
     }
 
     private addJdkToXml() {
@@ -277,6 +310,14 @@ class Module extends XmlPersistableConfigurationObject {
 
     private Node findNewModuleRootManager() {
         xml.component.find { it.@name == 'NewModuleRootManager'}
+    }
+
+    private Node findFacetManager() {
+	    xml.component.find { it.@name == 'FacetManager'}
+    }
+
+    private Node findOrCreateFacetManager() {
+        return findFacetManager() ?: xml.appendNode('component', [name: 'FacetManager'])
     }
 
     private Node findTestOutputDir() {

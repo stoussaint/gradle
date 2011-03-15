@@ -62,11 +62,12 @@ class ModuleTest extends Specification {
         def constructorModuleDependencies = [
                 customDependencies[0],
                 new ModuleLibrary([path('x')], [], [], [new JarDirectory(path('y'), false)], null)] as LinkedHashSet
+	    def constructorFacets = [new FacetConfiguration('web')] as Set
 
         when:
         module.load(customModuleReader)
         module.configure(null, constructorSourceFolders, constructorTestSourceFolders, constructorExcludeFolders,
-                constructorInheritOutputDirs, constructorOutputDir, constructorTestOutputDir, constructorModuleDependencies, constructorJavaVersion)
+                constructorInheritOutputDirs, constructorOutputDir, constructorTestOutputDir, constructorModuleDependencies, constructorJavaVersion, constructorFacets)
 
         then:
         module.sourceFolders == customSourceFolders + constructorSourceFolders
@@ -76,6 +77,7 @@ class ModuleTest extends Specification {
         module.testOutputDir == constructorTestOutputDir
         module.javaVersion == constructorJavaVersion
         module.dependencies == constructorModuleDependencies
+        module.facets == constructorFacets
     }
 
     def loadDefaults() {
@@ -96,13 +98,44 @@ class ModuleTest extends Specification {
 
         when:
         module.loadDefaults()
-        module.configure(null, constructorSourceFolders, [] as Set, [] as Set, false, constructorOutputDir, constructorTestOutputDir, [] as Set, null)
+        module.configure(null, constructorSourceFolders, [] as Set, [] as Set, false, constructorOutputDir, constructorTestOutputDir, [] as Set, null, [] as Set)
         def xml = toXmlReader
         def newModule = new Module(xmlTransformer)
         newModule.load(xml)
 
         then:
         this.module == newModule
+    }
+
+    def generatedXmlShouldContainWebFacet() {
+        def constructorSourceFolders = [path('file://$MODULE_DIR$/src/main/java'), path('file://$MODULE_DIR$/src/main/resources')] as Set
+        def constructorOutputDir = new Path('someOut')
+        def constructorTestOutputDir = new Path('someTestOut')
+        def constructorFacets = [new FacetConfiguration('web', ['WEBAPP_DIR' : path('file://$MODULE_DIR$/src/main/webapp')])] as Set
+
+        when:
+        module.loadDefaults()
+        module.configure(null, constructorSourceFolders, [] as Set, [] as Set, false, constructorOutputDir, constructorTestOutputDir, [] as Set, null, constructorFacets)
+        def xml = new XmlSlurper().parse(toXmlReader)
+
+        then:
+        def facetManager = xml.component.find { it.@name == 'FacetManager' }
+        assert facetManager
+
+        def webFacet = facetManager.facet[0]
+        assert webFacet.@name == 'Web' && webFacet.@type == 'web'
+
+        def wfConfiguration = webFacet.configuration
+       
+        assert wfConfiguration.descriptors.deploymentDescriptor
+        def deploymentDescriptor = wfConfiguration.descriptors.deploymentDescriptor
+        assert deploymentDescriptor.@name == 'web.xml'
+        assert deploymentDescriptor.@url == 'file://$MODULE_DIR$/src/main/webapp/WEB-INF/web.xml'
+
+        assert wfConfiguration.webroots.root.@url == 'file://$MODULE_DIR$/src/main/webapp'
+
+        assert wfConfiguration.sourceRoots.root.find { it.@url == 'file://$MODULE_DIR$/src/main/java' }
+        assert wfConfiguration.sourceRoots.root.find { it.@url == 'file://$MODULE_DIR$/src/main/resources'}
     }
 
     private InputStream getToXmlReader() {

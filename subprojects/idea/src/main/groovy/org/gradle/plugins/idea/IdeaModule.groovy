@@ -20,6 +20,7 @@ import org.gradle.api.specs.Specs
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.XmlGeneratorTask
+import org.gradle.plugins.idea.model.FacetConfiguration
 import org.gradle.plugins.idea.model.Module
 import org.gradle.plugins.idea.model.ModuleLibrary
 import org.gradle.plugins.idea.model.Path
@@ -132,7 +133,7 @@ public class IdeaModule extends XmlGeneratorTask<Module> {
 
     @Override protected void configure(Module module) {
         module.configure(getContentPath(), getSourcePaths(), getTestSourcePaths(), getExcludePaths(),
-                inheritOutputDirs, getOutputPath(), getTestOutputPath(), getDependencies(), javaVersion)
+                inheritOutputDirs, getOutputPath(), getTestOutputPath(), getDependencies(), javaVersion, getFacets())
     }
 
     protected Path getContentPath() {
@@ -204,6 +205,18 @@ public class IdeaModule extends XmlGeneratorTask<Module> {
             return moduleLibraries as LinkedHashSet
         }
         return []
+    }
+
+    protected Set getFacets() {
+        def facets = [] as Set
+
+        println "Detecting Facets"
+        if (project.plugins.hasPlugin('war')) {
+            println "War Plugin detected"
+            facets << new FacetConfiguration('web', ['WEBAPP_DIR' : getPath(project.properties.webAppDir)])
+        }
+
+        return facets
     }
 
     private def getSelfResolvingFiles(Collection dependencies, String scope) {

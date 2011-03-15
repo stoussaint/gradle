@@ -45,6 +45,17 @@ class IdeaModuleTest extends Specification {
         childProject.ideaModule.outputFile.parentFile == existingOutputFolder
     }
 
+    def "prepares web facet"() {
+        given:
+        applyPluginToProjects()
+
+        when:
+        childProject.apply plugin: 'war'
+
+        then:
+        assert childProject.ideaModule.facets.find { it.name == 'web' }
+    }
+
     private applyPluginToProjects() {
         ideaPlugin.apply(project)
         ideaPlugin.apply(childProject)

@@ -210,9 +210,7 @@ public class IdeaModule extends XmlGeneratorTask<Module> {
     protected Set getFacets() {
         def facets = [] as Set
 
-        println "Detecting Facets"
         if (project.plugins.hasPlugin('war')) {
-            println "War Plugin detected"
             facets << new FacetConfiguration('web', ['WEBAPP_DIR' : getPath(project.properties.webAppDir)])
         }
 

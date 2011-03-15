@@ -56,7 +56,7 @@ class FacetConfiguration {
 
     public String toString() {
         return "FacetConfiguration{" +
-                "name='" + name + "'"
+                "name='" + name + "'" +
                 "}";
     }
 }
